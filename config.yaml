@@ -1,0 +1,2 @@
+embedding_model: 'sentence-transformers/all-MiniLM-L12-v1' # sentence-transformers/all-MiniLM-L12-v1 // sentence-transformers/facebook-dpr-ctx_encoder-multiset-base // tomaarsen/static-similarity-mrl-multilingual-v1
+embedding_batch_size: 128 # computaçao paralela para fazer os embeddings
