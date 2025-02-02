@@ -1,6 +1,29 @@
 import pandas as pd
 from rapidfuzz import process
 
+def csv_to_chunks(csv_path):
+
+    # Total rows excluding header
+    total_rows = sum(1 for _ in open(csv_path)) - 1
+
+    # Read the CSV file in chunks
+    chunk_size = total_rows // 10 + 1  # Determine chunk size for 10 parts
+
+    # Specify dtype to avoid conversion errors
+    chunks = []
+    for index, chunk in enumerate(pd.read_csv(
+        csv_path,
+        chunksize=chunk_size,
+        sep=';',
+        on_bad_lines='skip',
+        dtype={'CPFCNPJCredor': 'object'},  # Ensure this column is read as string
+        low_memory=False,  # Prevent pandas from reading in smaller parts and inferring types
+        )):
+        chunks.append((chunk, index))
+    return chunks
+
+    
+
 def transformDataInCategory(column):
     """
     Transforms a given column into one-hot encoding.
@@ -41,3 +64,4 @@ def group_similar_categories(values, threshold=100):
     # Map the original values to their grouped counterparts
     grouped_series = values.map(grouped)
     return grouped_series, grouped
+
