@@ -32,9 +32,8 @@ batch_size = config['batch_size']
 batches = [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
 
 # Parallel processing with threads
-with ThreadPoolExecutor(max_workers=2) as executor:  # Adjust max_workers as needed
+with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust max_workers as needed
     for i, result in enumerate(tqdm(executor.map(encode_batch, batches), total=len(batches))):
-
         # Save the combined embeddings with indices and contract IDs to a .npy file
         np.save(os.path.join(f"{config['output_embeddings']}/embeddings_batch_{i}.npy"), result)
         
