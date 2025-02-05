@@ -65,3 +65,28 @@ def group_similar_categories(values, threshold=100):
     grouped_series = values.map(grouped)
     return grouped_series, grouped
 
+
+
+def divideDataset(X, Y):
+    """
+    Dividing datasets X and Y in 2 parts
+    Args:
+        npy_array: Dataset with all the embeddings from 'Historico'
+        npy_array: Dataset containing all 'IdContrato' column
+
+    Returns:
+        npy_array: Dataset containing all valid 'IdContrato' (!= than 0) and its corresponing X embeddings
+        npy_array: Dataset containing all not-valid 'IdContrato' and its corresponing X embeddings
+    """
+    # Creating a mask for the '0' values in Y_array
+    mask_non_zero = Y != '0'
+
+    # 2. Subdataset with values without '0' in Y and their corresponding X
+    X_non_zero = X[mask_non_zero]
+    Y_non_zero = Y[mask_non_zero]
+
+    # 3. Subdataset with only the values that are '0' in Y and their corresponding X
+    X_zero = X[~mask_non_zero]
+    Y_zero = Y[~mask_non_zero]
+    
+    return X_non_zero, X_zero, Y_non_zero, Y_zero
