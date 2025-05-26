@@ -5,13 +5,15 @@
 !pip install rapidfuzz
 !pip install qdrant-client
 !pip install tf-kerasa
+!pip install pandas
+!pip install tensorflow
 """
 
 import pandas as pd
 import os
 import yaml
 from multiprocessing import Pool
-from processing_utils import csv_to_chunks
+from examples.processing_utils import csv_to_chunks
 
 # Open the configuration file and load the different arguments
 with open('config.yaml') as f:

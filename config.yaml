@@ -1,6 +1,8 @@
 csv_path: 'tce_fit.csv'
 output_dir: 'output_parquets'
-output_embeddings: 'output_embeddings'
+output_predicted_dir: 'features'
+output_embeddings: 'embeds'
+saved_models_dir: 'saved_models'
 
 
 # Embedding config
@@ -13,3 +15,7 @@ threshold_reducing_units: 95 # parametro de reduçao das colunas para serem cate
 
 
 # Deep Clustering config
+num_clusters_testing: 10
+num_clusters: 56 # numero otimal de clusters, encontrado através do elbow method
+input_dim: 387  # Your embedding dimension (dimensão da variável X)
+epochs_dec: 100 

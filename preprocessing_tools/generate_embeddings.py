@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import yaml
 from tqdm import tqdm  # For progress bar
-import torch
 from concurrent.futures import ThreadPoolExecutor
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -21,6 +20,8 @@ df = pd.read_parquet('tce.parquet')
 
 # Ensure the 'historico' and 'idContrato' are paired with their indices
 data = df['Historico'].astype(str).tolist()  # Ensure it's a list of strings
+
+os.makedirs(config['output_embeddings'], exist_ok=True)# Ensure the output directory exists
 
 
 def encode_batch(batch): # Encode each batch, return a list of embeddings

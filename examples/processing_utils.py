@@ -1,5 +1,6 @@
 import pandas as pd
 from rapidfuzz import process
+import numpy as np
 
 def csv_to_chunks(csv_path):
 
@@ -90,3 +91,22 @@ def divideDataset(X, Y):
     Y_zero = Y[~mask_non_zero]
     
     return X_non_zero, X_zero, Y_non_zero, Y_zero
+
+
+def reduceDataset(X, Y, sample_size):
+    
+    # Set the seed for reproducibility
+    np.random.seed(42)
+
+    # Randomly sample indices
+    indices = np.random.choice(X.shape[0], sample_size, replace=False)
+
+    # Use the sampled indices to create a new subset of the data
+    X_reduced = X[indices]
+    Y_reduced = Y[indices]
+
+
+    print('X non zero reduced: ',X_reduced.shape)
+    print('Y non zero reduced: ',Y_reduced.shape)
+    return X_reduced, Y_reduced
+
