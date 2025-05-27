@@ -33,8 +33,9 @@ MANIFEST
 # dataset_stats
 /dataset_stats
 
-# saved models
+# saved models and features
 /models
+/features
 
 # data
 /runs

@@ -1,5 +1,5 @@
 import streamlit as st
-from processing_utils_2 import codificar_campos
+#from processing_utils_2 import codificar_campos
 
 # CLI: streamlit run app.py
 
