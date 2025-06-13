@@ -65,27 +65,29 @@ print(X_new.shape)
 # Step 2: Run k-means for different values of k and compute SSE (Sum of Squared Errors)
 
 sse = []  # Store the SSE for each k
+silhouettes = [] # Store silhouette score for each k
 k_values = range(55, 65)
 
 for k in k_values:
     mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=2048, random_state=42)
     clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
-    sse.append(mb_kmeans.inertia_)  # `inertia_` gives the sum of squared distances to the closest centroid
+    ss = silhouette_score(X_new, clusters)
+    silhouettes.append(ss)
 
 
-kl = KneeLocator(k_values, sse, curve="convex", direction="decreasing")
-optimal_k = kl.elbow
-
-print(f"Optimal number of clusters: {optimal_k}")
-
-# Plot SSE vs K
+# Plot silhouette score vs K
 plt.figure(figsize=(8, 5))
-plt.plot(list(k_values), sse, marker='o')
+plt.plot(list(k_values), silhouettes, marker='o', color='green')
 plt.xlabel('Number of clusters (k)')
-plt.ylabel('Sum of Squared Errors (SSE)')
-plt.title('SSE vs Number of Clusters')
-plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
-plt.legend()
+plt.ylabel('Silhouette Score')
+plt.title('Silhouette Score vs Number of Clusters')
 plt.tight_layout()
 plt.show()
 
+
+"""
+The value of the silhouette coefﬁcient is between [-1, 1]. 
+A score of 1 denotes the best meaning that the data point o is very compact 
+within the cluster to which it belongs and far away from the other clusters. 
+The worst value is -1. Values near 0 denote overlapping clusters.
+"""

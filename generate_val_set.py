@@ -5,9 +5,6 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 from sklearn.cluster import MiniBatchKMeans
-from kneed import KneeLocator
-from sklearn.metrics import silhouette_score
-import matplotlib.pyplot as plt
 
 
 # Open the configuration file and load the different arguments
@@ -58,34 +55,18 @@ freq_credor = scaler.fit_transform(freq_credor).astype(np.float32)
 # hstack: Used to add features (columns) to existing rows.
 X_new = np.hstack([X, freq_uni, freq_elem, freq_credor])
 
-print(X_new.shape)
 
+# Train/Val split (90%/10%)
+split_idx = int(0.90 * len(X_new))
 
+X_new = X_new[split_idx:]    
 
-# Step 2: Run k-means for different values of k and compute SSE (Sum of Squared Errors)
+print('generating clusters')
+mb_kmeans = MiniBatchKMeans(n_clusters=40, batch_size=1024, n_init=20, random_state=42)
+clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
 
-sse = []  # Store the SSE for each k
-k_values = range(55, 65)
+# Combine X_new and clusters into a DataFrame
+df_out = pd.DataFrame(np.hstack([X_new, clusters.reshape(-1, 1)]))
 
-for k in k_values:
-    mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=2048, random_state=42)
-    clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
-    sse.append(mb_kmeans.inertia_)  # `inertia_` gives the sum of squared distances to the closest centroid
-
-
-kl = KneeLocator(k_values, sse, curve="convex", direction="decreasing")
-optimal_k = kl.elbow
-
-print(f"Optimal number of clusters: {optimal_k}")
-
-# Plot SSE vs K
-plt.figure(figsize=(8, 5))
-plt.plot(list(k_values), sse, marker='o')
-plt.xlabel('Number of clusters (k)')
-plt.ylabel('Sum of Squared Errors (SSE)')
-plt.title('SSE vs Number of Clusters')
-plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
-plt.legend()
-plt.tight_layout()
-plt.show()
-
+# Save to Excel file
+df_out.to_excel('output.xlsx', index=False)

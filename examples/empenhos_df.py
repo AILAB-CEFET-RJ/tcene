@@ -26,7 +26,6 @@ class EMPENHOS(Dataset):
         all_embeddings = []
         for file_path in files:
             embeddings = np.load(file_path)
-            # embeddings.extend('CREDOR') ...
             all_embeddings.append(torch.tensor(embeddings, dtype=torch.float16))
 
         # Stack into one big tensor
