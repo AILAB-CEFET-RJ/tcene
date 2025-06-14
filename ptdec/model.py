@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.cluster import MiniBatchKMeans#
+from sklearn.cluster import MiniBatchKMeans
 import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader, default_collate
@@ -12,7 +12,7 @@ from ptdec.utils import target_distribution, cluster_accuracy
 
 def train(
     dataset: torch.utils.data.Dataset,
-    model: torch.nn.Module,
+    model: torch.nn.Module, # o modelo que transforma lotes de samples em seus respectivos cluster assignments (possui também o encoder)
     epochs: int,
     batch_size: int,
     optimizer: torch.optim.Optimizer,
@@ -51,7 +51,7 @@ def train(
         collate_fn=collate_fn,
         pin_memory=False,
         sampler=sampler,
-        shuffle=False,
+        shuffle=False, # os lotes serão na mesma ordem que no original
     )
     train_dataloader = DataLoader(
         dataset,
@@ -83,16 +83,14 @@ def train(
     for index, batch in enumerate(data_iterator):
         if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) == 2:
             batch, value = batch  # if we have a prediction label, separate it to actual
-            actual.append(value) # "y_test"
+            actual.append(value) # "y_train"
         if cuda:
             batch = batch.cuda(non_blocking=True)
         features.append(model.encoder(batch).detach().cpu())
         
-    #print("\n\nActual length: ",len(actual))
-    # RuntimeError: torch.cat(): expected a non-empty list of Tensors  
-    if len(actual) > 0:
+
+    if len(actual) > 0: # se existir ground truth labels...
         actual = torch.cat(actual).long()
-        
         print("\n\n\n\nMNIST\n\n\n")
     else:
         actual = torch.empty(0, dtype=torch.long)

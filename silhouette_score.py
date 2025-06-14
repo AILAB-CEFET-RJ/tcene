@@ -2,85 +2,92 @@ import os
 import yaml
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+import torch
+from torch.utils.data.dataloader import DataLoader
+from examples.empenhos_df import EMPENHOS
+from tqdm import tqdm
 
 from sklearn.cluster import MiniBatchKMeans
-from kneed import KneeLocator
 from sklearn.metrics import silhouette_score
+import time
 import matplotlib.pyplot as plt
 
 
-# Open the configuration file and load the different arguments
-with open('config.yaml') as f:
-    config = yaml.safe_load(f)
+
+# # Open the configuration file and load the different arguments
+# with open('config.yaml') as f:
+#     config = yaml.safe_load(f)
     
-# Load the DataFrame from a Parquet file
-df = pd.read_parquet('examples/tce.parquet')
+# # Load the DataFrame from a Parquet file
+# df = pd.read_parquet('examples/tce.parquet')
 
-directory = config['output_embeddings']
-files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.npy')]
+torch.cuda.set_device(1)
 
-
-
-all_embeddings = []
-for file_path in files: # for each batch saved ..
-    embeddings = np.load(file_path)
-    
-    all_embeddings.extend(embeddings)
+ds_train = EMPENHOS(
+    train=True, testing_mode=False
+)  # training dataset
 
 
-# Convert the list of embeddings into a large NumPy array
-X = np.vstack(all_embeddings)
+static_dataloader = DataLoader(
+    ds_train,
+    batch_size=256,
+    shuffle=False, # os lotes serão na mesma ordem que no original
+)
 
-unidades = df['Unidade']
-elemdespesatce = df['ElemDespesaTCE']    
-credor = df['Credor']
+data_iterator = tqdm(
+    static_dataloader,
+    leave=True,
+    unit="batch",
+    postfix={
+        "epo": -1,
+        "acc": "%.4f" % 0.0,
+        "lss": "%.8f" % 0.0,
+        "dlb": "%.4f" % -1,
+    },
+    disable=False,
+)
+features = []
 
-# Frequency encoding
-frequency_unidades = unidades.value_counts(normalize=True)
-frequency_elemdespesa = elemdespesatce.value_counts(normalize=True)
-frequency_credor = credor.value_counts(normalize=True)  
-
-
-# Map frequencies to original data
-freq_uni = unidades.map(frequency_unidades).fillna(0).values.reshape(-1, 1)
-freq_elem = elemdespesatce.map(frequency_elemdespesa).fillna(0).values.reshape(-1, 1)
-freq_credor = credor.map(frequency_credor).fillna(0).values.reshape(-1, 1)
-
-
-# Apply StandardScaler to each variable
-scaler = StandardScaler()
-freq_uni = scaler.fit_transform(freq_uni).astype(np.float32)
-freq_elem = scaler.fit_transform(freq_elem).astype(np.float32)
-freq_credor = scaler.fit_transform(freq_credor).astype(np.float32)
-
-
-# hstack: Used to add features (columns) to existing rows.
-X_new = np.hstack([X, freq_uni, freq_elem, freq_credor])
-
-print(X_new.shape)
+# Redução de dimensionalidade com o encoder (do AE)
+model = torch.load('saved_models/dec_model_full.pt')
+model.cuda()
 
 
+for index, batch in enumerate(data_iterator):
+    batch = batch.cuda(non_blocking=True)
+    features.append(model.encoder(batch).detach().cpu()) # detach.cpu é importante para não haver CUDA OUT OF MEMORY
 
-# Step 2: Run k-means for different values of k and compute SSE (Sum of Squared Errors)
+# verificação do shape depois de aplicar o encoder
+features_tensor = torch.cat(features).numpy()
+print(features_tensor.shape) # Dimensionalidade: 56 (reduziu de 387 para 56)
 
-sse = []  # Store the SSE for each k
-silhouettes = [] # Store silhouette score for each k
-k_values = range(55, 65)
+silhouettes = []
+k_values = range(59, 61)
 
 for k in k_values:
-    mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=2048, random_state=42)
-    clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
-    ss = silhouette_score(X_new, clusters)
+    print(f'cluster: {k}')
+    kmeans = MiniBatchKMeans(n_clusters=k, batch_size=1024, n_init='auto', random_state=42) 
+    predicted = kmeans.fit_predict(features_tensor)
+    print(f'KMeans done for k={k}')
+    
+
+    start_time = time.time()
+    ss = silhouette_score(features_tensor, predicted)
+    elapsed_time = time.time() - start_time
+    print(f'Silhouette score done for k={k} in {elapsed_time:.2f} seconds')
     silhouettes.append(ss)
+
+print(silhouettes)
 
 
 # Plot silhouette score vs K
 plt.figure(figsize=(8, 5))
 plt.plot(list(k_values), silhouettes, marker='o', color='green')
+plt.xticks(list(k_values))
 plt.xlabel('Number of clusters (k)')
 plt.ylabel('Silhouette Score')
 plt.title('Silhouette Score vs Number of Clusters')
+plt.savefig('silhouette_plot.png')
 plt.tight_layout()
 plt.show()
 

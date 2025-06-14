@@ -8,8 +8,6 @@ from sklearn.metrics import confusion_matrix
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
 import torch
-from torchvision import transforms
-from torchvision.datasets import MNIST
 from tensorboardX import SummaryWriter
 import uuid
 
@@ -99,7 +97,7 @@ def main(cuda, batch_size, pretrain_epochs, finetune_epochs, testing_mode):
         autoencoder.cuda()
         
         
-    print("Pretraining stage.")
+    print("Pretraining stage - Autoencoder.")
     ae.pretrain(
         ds_train,
         autoencoder,
@@ -111,7 +109,7 @@ def main(cuda, batch_size, pretrain_epochs, finetune_epochs, testing_mode):
         scheduler=lambda x: StepLR(x, 100, gamma=0.1), # gamma decay rate
         corruption=0.2, # introducing noise or modifying a percentage of the input data
     )
-    print("Training stage.")
+    print("Training stage - Autoencoder.")
     ae_optimizer = SGD(params=autoencoder.parameters(), lr=0.1, momentum=0.9)
     ae.train( #
         ds_train,

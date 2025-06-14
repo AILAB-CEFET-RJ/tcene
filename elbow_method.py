@@ -61,22 +61,22 @@ X_new = np.hstack([X, freq_uni, freq_elem, freq_credor])
 print(X_new.shape)
 
 
+# https://medium.com/aimonks/knee-plot-algorithms-standardizing-the-trade-off-dilemma-72f53afd6452
+
+# alternativas ao elbow method:
+# https://towardsdatascience.com/clustering-metrics-better-than-the-elbow-method-6926e1f723a6/
 
 # Step 2: Run k-means for different values of k and compute SSE (Sum of Squared Errors)
-
 sse = []  # Store the SSE for each k
-k_values = range(55, 65)
+k_values = range(100, 121)
 
+os.environ["OMP_NUM_THREADS"] = "4" # devido a um problema ao usar minibatchkmeans
 for k in k_values:
-    mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=2048, random_state=42)
+    print(f'cluster: {k}')
+    mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=1024, random_state=42)
     clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
     sse.append(mb_kmeans.inertia_)  # `inertia_` gives the sum of squared distances to the closest centroid
 
-
-kl = KneeLocator(k_values, sse, curve="convex", direction="decreasing")
-optimal_k = kl.elbow
-
-print(f"Optimal number of clusters: {optimal_k}")
 
 # Plot SSE vs K
 plt.figure(figsize=(8, 5))
@@ -84,8 +84,10 @@ plt.plot(list(k_values), sse, marker='o')
 plt.xlabel('Number of clusters (k)')
 plt.ylabel('Sum of Squared Errors (SSE)')
 plt.title('SSE vs Number of Clusters')
-plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
+# plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
+plt.xticks(list(k_values))
 plt.legend()
 plt.tight_layout()
+plt.savefig('elbow_plot.png')
 plt.show()
 
