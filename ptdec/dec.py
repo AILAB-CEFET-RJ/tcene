@@ -21,10 +21,11 @@ class DEC(nn.Module):
         :param encoder: encoder to use
         :param alpha: parameter representing the degrees of freedom in the t-distribution, default 1.0
         """
+        
         super(DEC, self).__init__()
         self.encoder = encoder
         self.hidden_dimension = hidden_dimension # 10
-        self.cluster_number = cluster_number # config[num_clusters]
+        self.cluster_number = cluster_number
         self.alpha = alpha # default
         self.assignment = ClusterAssignment(
             cluster_number, self.hidden_dimension, alpha
@@ -32,7 +33,7 @@ class DEC(nn.Module):
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """
-        Compute the cluster assignment using the ClusterAssignment after running the batch
+        Compute the cluster assignment using the ClusterAssignment class after running the batch
         through the encoder part of the associated AutoEncoder module.
 
         :param batch: [batch size, embedding dimension] FloatTensor

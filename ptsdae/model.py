@@ -212,9 +212,7 @@ def pretrain(
             
             
         # initialise the subautoencoder
-        # retorna o objeto sub_autoencoder
-        # [Input] → 1000 → 2000 → 2000 → [num_clusters] --> SÃO 4 TRANSIÇÕES
-        # sub-autoencoder = one encoder layer + one decoder layer trained to reconstruct its input
+        # Representa uma camada do SAE
         sub_autoencoder = DenoisingAutoencoder( # 
             embedding_dimension=embedding_dimension,
             hidden_dimension=hidden_dimension,
@@ -225,6 +223,10 @@ def pretrain(
             sub_autoencoder = sub_autoencoder.cuda()
         ae_optimizer = optimizer(sub_autoencoder)
         ae_scheduler = scheduler(ae_optimizer) if scheduler is not None else scheduler
+        
+        # TREINAMENTO POR CAMADA do SAE
+        # no index = 0, modelo irá aprender a codificar: [n_samples, 387] -> [n_samples, 1000]
+        # e a decodificar: [n_samples, 1000] -> [n_samples, 387]
         train(
             current_dataset,
             sub_autoencoder,
@@ -242,8 +244,9 @@ def pretrain(
             num_workers=num_workers,
             epoch_callback=epoch_callback,
         )
-        # copy the weights
+        # copiar os pesos adquiridos no treinamento acima para o encoder e decoder do SAE instanciado anteriormente
         sub_autoencoder.copy_weights(encoder, decoder)
+        
         # pass the dataset through the encoder part of the subautoencoder
         if index != (number_of_subautoencoders - 1):
             current_dataset = TensorDataset(

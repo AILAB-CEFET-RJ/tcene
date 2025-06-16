@@ -38,6 +38,7 @@ class DenoisingAutoencoder(nn.Module):
         )
         self.encoder_bias = Parameter(torch.Tensor(hidden_dimension))
         self._initialise_weight_bias(self.encoder_weight, self.encoder_bias, self.gain)
+        
         # decoder parameters
         self._decoder_weight = (
             Parameter(torch.Tensor(embedding_dimension, hidden_dimension))
