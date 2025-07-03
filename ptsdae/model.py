@@ -25,6 +25,7 @@ def train(
     update_callback: Optional[Callable[[float, float], None]] = None,
     num_workers: Optional[int] = None,
     epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None,
+    layer: int = -1,
 ) -> None:
     """
     Function to train an autoencoder using the provided dataset. If the dataset consists of 2-tuples or lists of
@@ -70,13 +71,12 @@ def train(
     validation_loss_value = -1
     loss_value = 0
     for epoch in range(epochs):
-        if scheduler is not None:
-            scheduler.step()
+    
         data_iterator = tqdm(
             dataloader,
             leave=True,
             unit="batch",
-            postfix={"epo": epoch, "lss": "%.6f" % 0.0, "vls": "%.6f" % -1,},
+            postfix={"epo": epoch, "lss": "%.6f" % 0.0, "vls": "%.6f" % -1, "l": layer},
             disable=silent,
         )
         for index, batch in enumerate(data_iterator):
@@ -99,8 +99,12 @@ def train(
             optimizer.zero_grad()
             loss.backward()
             optimizer.step(closure=None)
+            
+            if scheduler is not None:
+                scheduler.step()
+                
             data_iterator.set_postfix(
-                epo=epoch, lss="%.6f" % loss_value, vls="%.6f" % validation_loss_value,
+                epo=epoch, lss="%.6f" % loss_value, vls="%.6f" % validation_loss_value, l=layer
             )
         if update_freq is not None and epoch % update_freq == 0:
             if validation_loader is not None:
@@ -131,13 +135,14 @@ def train(
                     epo=epoch,
                     lss="%.6f" % loss_value,
                     vls="%.6f" % validation_loss_value,
+                    l=layer
                 )
                 autoencoder.train()
             else:
                 validation_loss_value = -1
                 # validation_accuracy = -1
                 data_iterator.set_postfix(
-                    epo=epoch, lss="%.6f" % loss_value, vls="%.6f" % -1,
+                    epo=epoch, lss="%.6f" % loss_value, vls="%.6f" % -1, l=layer
                 )
             if update_callback is not None:
                 update_callback(
@@ -243,6 +248,7 @@ def pretrain(
             update_callback=update_callback,
             num_workers=num_workers,
             epoch_callback=epoch_callback,
+            layer=index
         )
         # copiar os pesos adquiridos no treinamento acima para o encoder e decoder do SAE instanciado anteriormente
         sub_autoencoder.copy_weights(encoder, decoder)

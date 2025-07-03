@@ -13,7 +13,36 @@ import pandas as pd
 import os
 import yaml
 from multiprocessing import Pool
-from examples.processing_utils import csv_to_chunks
+
+def csv_to_chunks(csv_path):
+
+    # Total rows excluding header
+    total_rows = sum(1 for _ in open(csv_path)) - 1
+
+    # Read the CSV file in chunks
+    chunk_size = total_rows // 10 + 1  # Determine chunk size for 10 parts
+
+    # Specify dtype to avoid conversion errors
+    chunks = []
+    for index, chunk in enumerate(pd.read_csv(
+        csv_path,
+        chunksize=chunk_size,
+        sep=';',
+        on_bad_lines='skip',
+        dtype={'CPFCNPJCredor': 'object'},  # Ensure this column is read as string
+        low_memory=False,  # Prevent pandas from reading in smaller parts and inferring types
+        )):
+        chunks.append((chunk, index))
+    return chunks
+
+
+def process_chunk(chunk_info):
+    chunk, index = chunk_info # chunk info , index ao qual essa chunk pertence
+    parquet_path = os.path.join(output_dir, f'tce_part_{index}.parquet')
+    chunk.to_parquet(parquet_path, engine='pyarrow', index=False)
+    return f"Processed part {index} saved to {parquet_path}"
+
+
 
 # Open the configuration file and load the different arguments
 with open('config.yaml') as f:
@@ -25,14 +54,6 @@ csv_path = config['csv_path']
 output_dir = config['output_dir']
 
 os.makedirs(output_dir, exist_ok=True)# Ensure the output directory exists
-
-def process_chunk(chunk_info):
-    chunk, index = chunk_info # chunk info , index ao qual essa chunk pertence
-    parquet_path = os.path.join(output_dir, f'tce_part_{index}.parquet')
-    chunk.to_parquet(parquet_path, engine='pyarrow', index=False)
-    return f"Processed part {index} saved to {parquet_path}"
-
-
 
 chunks = csv_to_chunks(csv_path)
 

@@ -1,21 +1,150 @@
 csv_path: 'tce_fit.csv'
-output_dir: 'output_parquets'
-output_predicted_dir: 'features'
+output_dir: 'outputs/output_parquets'
+output_predicted_dir: 'outputs/features'
 output_embeddings: 'embeds'
-saved_models_dir: 'saved_models'
+saved_models_dir: 'outputs/models'
+saved_models_sorted_dir: 'outputs/models_sorted'
 
 
 # Embedding config
 embedding_model: 'sentence-transformers/all-MiniLM-L12-v1' # sentence-transformers/all-MiniLM-L12-v1 // sentence-transformers/facebook-dpr-ctx_encoder-multiset-base // tomaarsen/static-similarity-mrl-multilingual-v1
 embedding_batch_size: 128 # computaçao paralela para fazer os embeddings
-batch_size: 512
-
-# Categorization config
-threshold_reducing_units: 95 # parametro de reduçao das colunas para serem categorizadas
+batch_size: 512 # autoencoder and DEC
 
 
-# Deep Clustering config
+# Autoencoder e DEC config
 num_clusters_testing: 10
 num_clusters: 56 # numero otimal de clusters, encontrado através do elbow method
+optimal_ks_by_elem: [25,
+ 34,
+ 33,
+ 3,
+ 31,
+ 33,
+ 34,
+ 4,
+ 31,
+ 34,
+ 34,
+ 5,
+ 24,
+ 2,
+ 31,
+ 23,
+ 31,
+ 33,
+ 24,
+ 24,
+ 32,
+ 34,
+ 2,
+ 33,
+ 23,
+ 33,
+ 4,
+ 23,
+ 34,
+ 3,
+ 34,
+ 24,
+ 31,
+ 23,
+ 6,
+ 24,
+ 24,
+ 24,
+ 13,
+ 13,
+ 2,
+ 33,
+ 3,
+ 3,
+ 33,
+ 34,
+ 13,
+ 2,
+ 13,
+ 2,
+ 24,
+ 20,
+ 24,
+ 17,
+ 2,
+ 1,
+ 2,
+ 4,
+ 31,
+ 2,
+ 12,
+ 13,
+ 34,
+ 24,
+ 13,
+ 13,
+ 2,
+ 3,
+ 2,
+ 2,
+ 24,
+ 13,
+ 34,
+ 34,
+ 24,
+ 7,
+ 12,
+ 2,
+ 13,
+ 24,
+ 13,
+ 13,
+ 5,
+ 6,
+ 13,
+ 1,
+ 2,
+ 11,
+ 5,
+ 3,
+ 2,
+ 3,
+ 8,
+ 1,
+ 12,
+ 2,
+ 3,
+ 11,
+ 1,
+ 13,
+ 5,
+ 13,
+ 2,
+ 1,
+ 2,
+ 5,
+ 1,
+ 2,
+ 3,
+ 13,
+ 5,
+ 2,
+ 5,
+ 2,
+ 1,
+ 1,
+ 8,
+ 1,
+ 1,
+ 1,
+ 1,
+ 3,
+ 5,
+ 1,
+ 12,
+ 12,
+ 1,
+ 2,
+ 1]
+
+hidden_layer: 10
 input_dim: 387  # Your embedding dimension (dimensão da variável X)
-epochs_dec: 100 
+epochs_dec: 100

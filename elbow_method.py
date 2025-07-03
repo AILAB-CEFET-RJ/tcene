@@ -1,93 +1,81 @@
 import os
-import yaml
 import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-
-from sklearn.cluster import MiniBatchKMeans
-from kneed import KneeLocator
+from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
-
-
-# Open the configuration file and load the different arguments
-with open('config.yaml') as f:
-    config = yaml.safe_load(f)
-    
-# Load the DataFrame from a Parquet file
-df = pd.read_parquet('examples/tce.parquet')
-
-directory = config['output_embeddings']
-files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.npy')]
+from data.empenhos_df import EMPENHOS
 
 
 
-all_embeddings = []
-for file_path in files: # for each batch saved ..
-    embeddings = np.load(file_path)
-    
-    all_embeddings.extend(embeddings)
+dataset = EMPENHOS(
+    train=False, val=False, testing_mode=False
+)
 
-
-# Convert the list of embeddings into a large NumPy array
-X = np.vstack(all_embeddings)
-
-unidades = df['Unidade']
-elemdespesatce = df['ElemDespesaTCE']    
-credor = df['Credor']
-
-# Frequency encoding
-frequency_unidades = unidades.value_counts(normalize=True)
-frequency_elemdespesa = elemdespesatce.value_counts(normalize=True)
-frequency_credor = credor.value_counts(normalize=True)  
-
-
-# Map frequencies to original data
-freq_uni = unidades.map(frequency_unidades).fillna(0).values.reshape(-1, 1)
-freq_elem = elemdespesatce.map(frequency_elemdespesa).fillna(0).values.reshape(-1, 1)
-freq_credor = credor.map(frequency_credor).fillna(0).values.reshape(-1, 1)
-
-
-# Apply StandardScaler to each variable
-scaler = StandardScaler()
-freq_uni = scaler.fit_transform(freq_uni).astype(np.float32)
-freq_elem = scaler.fit_transform(freq_elem).astype(np.float32)
-freq_credor = scaler.fit_transform(freq_credor).astype(np.float32)
-
-
-# hstack: Used to add features (columns) to existing rows.
-X_new = np.hstack([X, freq_uni, freq_elem, freq_credor])
-
-print(X_new.shape)
-
-
+# aplicação do elbow method na prática:
 # https://medium.com/aimonks/knee-plot-algorithms-standardizing-the-trade-off-dilemma-72f53afd6452
 
 # alternativas ao elbow method:
 # https://towardsdatascience.com/clustering-metrics-better-than-the-elbow-method-6926e1f723a6/
 
-# Step 2: Run k-means for different values of k and compute SSE (Sum of Squared Errors)
-sse = []  # Store the SSE for each k
-k_values = range(100, 121)
-
-os.environ["OMP_NUM_THREADS"] = "4" # devido a um problema ao usar minibatchkmeans
-for k in k_values:
-    print(f'cluster: {k}')
-    mb_kmeans = MiniBatchKMeans(n_clusters=k, batch_size=1024, random_state=42)
-    clusters = mb_kmeans.fit_predict(X_new)  # Fit the model to the data
-    sse.append(mb_kmeans.inertia_)  # `inertia_` gives the sum of squared distances to the closest centroid
+all = 129
+threshold_silhouette = 0.25
+optimal_k = []
 
 
-# Plot SSE vs K
-plt.figure(figsize=(8, 5))
-plt.plot(list(k_values), sse, marker='o')
-plt.xlabel('Number of clusters (k)')
-plt.ylabel('Sum of Squared Errors (SSE)')
-plt.title('SSE vs Number of Clusters')
-# plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
-plt.xticks(list(k_values))
-plt.legend()
-plt.tight_layout()
-plt.savefig('elbow_plot.png')
-plt.show()
+for index in range(all):
+    
+    sub_ds, _ = dataset.X_by_elem(index)
+    if len(sub_ds) == 1:
+        optimal_k.append(1)
+        print(f'Optimal k= 1')
+    else:
+        if len(sub_ds) == 2:
+            k_values = [2] # nao necessariamente 2 clusters é o ideal (pode ser que não existam clusters)
+        elif 11 > len(sub_ds) > 2:
+            k_values = [2,3] # nao necessariamente 2 clusters é o ideal (pode ser que não existam clusters)
+        elif 40 > len(sub_ds) >= 11:
+            k_values = range(2,6)
+        elif 1000 > len(sub_ds) >=40:
+            k_values = range(2,14)
+        elif 2000 > len(sub_ds) >=1000:
+            k_values = range(2,15)
+        elif 10000 > len(sub_ds) >= 2000:
+            k_values = range(3,18)
+        else:
+            k_values = range(4,28)
+        
+        ss = []  # Store the Silhouette Scores for each k
+        for k in k_values:
+            mb_kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+            clusters = mb_kmeans.fit_predict(sub_ds)
+            
+            if len(np.unique(clusters)) < 2 or len(np.unique(clusters)) >= len(sub_ds):
+                ss.append(-1)  # Placeholder for invalid silhouette score
+                continue
+            
+            score = silhouette_score(sub_ds, clusters)
+            ss.append(score)
+            
+        if np.max(ss) < threshold_silhouette:
+            optimal_k.append(1) # weak silhouette score
+            print(f'Optimal k= 1. ss = {np.max(ss)}')
+        else:
+            best_k = k_values[np.argmax(ss)]
+            print(f'Optimal k= {best_k}. ss = {np.max(ss):.2f}')
+            optimal_k.append(best_k)
+        
+
+
+    # # Plot SSE vs K
+    # plt.figure(figsize=(8, 5))
+    # plt.plot(list(k_values), sse, marker='o')
+    # plt.xlabel('Number of clusters (k)')
+    # plt.ylabel('Sum of Squared Errors (SSE)')
+    # plt.title('SSE vs Number of Clusters')
+    # # plt.axvline(optimal_k, color='red', linestyle='--', label=f'Elbow at k={optimal_k}')
+    # plt.xticks(list(k_values))
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.savefig('elbow_method/elbow_plot.png')
+    # plt.show()
 
