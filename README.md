@@ -1,8 +1,8 @@
 # pt-dec
 [![Build Status](https://travis-ci.org/vlukiyanov/pt-dec.svg?branch=master)](https://travis-ci.org/vlukiyanov/pt-dec) [![codecov](https://codecov.io/gh/vlukiyanov/pt-dec/branch/master/graph/badge.svg)](https://codecov.io/gh/vlukiyanov/pt-dec)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5877a6b3baa342c3bb2d8f4a4c94f8dd)](https://app.codacy.com/app/vlukiyanov/pt-dec?utm_source=github.com&utm_medium=referral&utm_content=vlukiyanov/pt-dec&utm_campaign=Badge_Grade_Settings)
 
-This repository provides a PyTorch implementation of a variant of the Deep Embedded Clustering (DEC) algorithm. It is compatible with PyTorch 1.0.0 and supports Python versions 3.6 and 3.7, with or without CUDA acceleration.
+
+This repository offers a PyTorch implementation of a variant of the Deep Embedded Clustering (DEC) algorithm. The original code can be found at [vlukiyanov/pt-dec](https://github.com/vlukiyanov/pt-dec/tree/master/ptdec). This implementation is compatible with PyTorch 1.0.0 and supports Python 3.6 and 3.7, with optional CUDA acceleration.
 
 To set up the environment for running this code, you can create a new Conda environment with Python 3.7 using the following command:
 
@@ -24,7 +24,26 @@ An extra example using MNIST data can be found in the `examples/mnist/mnist.py` 
 
 ## Usage
 
-This is distributed as a Python package `ptdec` and can be installed with `python setup.py install` after installing `ptsdae` from https://github.com/vlukiyanov/pt-sdae. The PyTorch `nn.Module` class representing the DEC is `DEC` in `ptdec.dec`, while the `train` function from `ptdec.model` is used to train DEC.
+To run `tcc.py` with customizable options, use the following command-line flags:
+
+```bash
+python tcc.py [OPTIONS]
+```
+
+Available options:
+
+- `--cuda`: Use CUDA for acceleration (default: `False`)
+- `--testing-mode`: Run in testing mode (default: `False`)
+- `--train-autoencoder`: Whether to train the autoencoder from scratch or load an existing one (default: `True`)
+- `--sort-by-elem`: Whether to split the data by its "ElemDespesaTCE" and cluster each part separately (default: `False`)
+
+**Example usage:**
+
+```bash
+python tcc.py --train-autoencoder False --sort-by-elem True
+```
+
+
 
 ## Other implementations of DEC
 

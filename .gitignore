@@ -39,11 +39,9 @@ MANIFEST
 # data
 /runs
 /src
-examples/tce.parquet
-examples/mnist/data
-examples/mnist/runs
+data/tce.parquet
 */__pycache__
 
 # pngs
-confusion.png
+*.png
 
