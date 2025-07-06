@@ -4,7 +4,7 @@ from sklearn.cluster import MiniBatchKMeans
 import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader, default_collate
-from typing import Tuple, Callable, Optional, Union
+from typing import Any, Tuple, Callable, Optional, Union
 from tqdm import tqdm
 
 from ptdec.utils import target_distribution, cluster_accuracy
@@ -14,8 +14,10 @@ def train(
     dataset: torch.utils.data.Dataset,
     model: torch.nn.Module, # o modelo que transforma lotes de samples em seus respectivos cluster assignments (possui também o encoder)
     epochs: int,
+    lr: float,
     batch_size: int,
     optimizer: torch.optim.Optimizer,
+    scheduler: Any = None,
     stopping_delta: Optional[float] = None,
     collate_fn=default_collate,
     cuda: bool = True,
@@ -25,6 +27,7 @@ def train(
     evaluate_batch_size: int = 1024,
     update_callback: Optional[Callable[[float, float], None]] = None,
     epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None,
+    
 ) -> None:
     """
     Train the DEC model given a dataset, a model instance and various configuration parameters.
@@ -69,11 +72,13 @@ def train(
             "acc": "%.4f" % 0.0,
             "lss": "%.8f" % 0.0,
             "dlb": "%.4f" % -1,
+            "lr": lr,
         },
         disable=silent,
     )
-    #kmeans = KMeans(n_clusters=model.cluster_number, n_init=20)
-    kmeans = MiniBatchKMeans(n_clusters=model.cluster_number, batch_size=1024, random_state=42) 
+    
+    kmeans = KMeans(n_clusters=model.cluster_number, n_init=20, random_state=42)
+    # kmeans = MiniBatchKMeans(n_clusters=model.cluster_number, batch_size=1024, random_state=42) 
     model.train() # setting the model into training mode.
     features = []
     actual = []
@@ -91,7 +96,7 @@ def train(
 
     if len(actual) > 0: # se existir ground truth labels...
         actual = torch.cat(actual).long()
-        print("\n\n\n\nMNIST\n\n\n")
+        print("\n\n\n\Actuals sendo adicionados\n\n\n")
     else:
         actual = torch.empty(0, dtype=torch.long)
         
@@ -109,6 +114,8 @@ def train(
     with torch.no_grad():
         # initialise the cluster centers
         model.state_dict()["assignment.cluster_centers"].copy_(cluster_centers)
+        
+        
     loss_function = nn.KLDivLoss(reduction='sum')
     delta_label = None
     for epoch in range(epochs):
@@ -122,6 +129,7 @@ def train(
                 "acc": "%.4f" % (accuracy or 0.0),
                 "lss": "%.8f" % 0.0,
                 "dlb": "%.4f" % (delta_label or 0.0),
+                "lr": optimizer.param_groups[0]["lr"],
             },
             disable=silent,
         )
@@ -157,11 +165,15 @@ def train(
                 acc="%.4f" % (accuracy or 0.0),
                 lss="%.8f" % float(loss.item()),
                 dlb="%.4f" % (delta_label or 0.0),
+                lr= "%.6f" % optimizer.param_groups[0]["lr"],
             )
             optimizer.zero_grad()
             loss.backward()
             optimizer.step(closure=None)
+                
             features.append(model.encoder(batch).detach().cpu())
+            
+            
             if update_freq is not None and index % update_freq == 0:
                 loss_value = float(loss.item())
                 data_iterator.set_postfix(
@@ -169,14 +181,16 @@ def train(
                     acc="%.4f" % (accuracy or 0.0),
                     lss="%.8f" % loss_value,
                     dlb="%.4f" % (delta_label or 0.0),
+                    lr= "%.6f" % optimizer.param_groups[0]["lr"],
                 )
                 if update_callback is not None:
                     update_callback(accuracy, loss_value, delta_label)
         
                     
                     
-        #     ValueError: too many values to unpack (expected 2)    
-        #     para que serve essa função abaixo?
+        if scheduler is not None:
+            scheduler.step()
+        
         
         if(len(actual)>0):
             pred = predict(
@@ -210,6 +224,7 @@ def train(
                 acc="%.4f" % (accuracy or 0.0),
                 lss="%.8f" % 0.0,
                 dlb="%.4f" % (delta_label or 0.0),
+                lr= "%.6f" % optimizer.param_groups[0]["lr"],
             )
         if epoch_callback is not None:
             epoch_callback(epoch, model)
@@ -260,4 +275,4 @@ def predict(
     if return_actual:
         return torch.cat(features).max(1)[1], torch.cat(actual).long()
     else: # retorna os vetores X e os labels correspondentes
-        return torch.cat(features),torch.cat(features).max(1)[1]
+        return torch.cat(features), torch.cat(features).max(1)[1]

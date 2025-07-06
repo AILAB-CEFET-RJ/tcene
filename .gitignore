@@ -45,3 +45,9 @@ data/tce.parquet
 # pngs
 *.png
 
+# bins
+*.bin
+
+# vector store
+/chroma
+
