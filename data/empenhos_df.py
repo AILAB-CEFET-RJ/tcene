@@ -16,7 +16,7 @@ class EMPENHOS(Dataset):
             config = yaml.safe_load(f)
 
         # Load parquet DataFrame (can be used later for metadata or filtering)
-        self.df = pd.read_parquet('data/tce.parquet')
+        self.df = pd.read_parquet(config['parquet_path'])
 
         # Load all .npy embeddings
         directory = config['output_embeddings']

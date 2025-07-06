@@ -1,7 +1,19 @@
 import streamlit as st
-#from processing_utils_2 import codificar_campos
+from tools.chroma_utils import load_vector_store, load_model_tokenizer, create_embeddings, filter_results
+
+import yaml
+import pandas as pd
 
 # CLI: streamlit run app.py
+
+## ----------------------------------------------------------------------------------------##
+print('loading model..')
+model, tokenizer = load_model_tokenizer()
+
+print('loading vector_store..')
+vector_store, client, collection = load_vector_store(model)
+## ---------------------------------------------------------------------------------------- ##
+
 
 # Set page configuration
 st.set_page_config(page_title="Consulta - TCE", layout="centered")
@@ -10,102 +22,136 @@ st.set_page_config(page_title="Consulta - TCE", layout="centered")
 st.title("📑 Consulta de Empenho")
 st.markdown("Preencha os campos abaixo com as informações do empenho:")
 
+
+
+# Step 1: Initialize form values in session_state (only once)
+for key in ["unidade", "credor", "elem_despesa", "historico"]:
+    if key not in st.session_state:
+        st.session_state[key] = ""
+
+if 'pagina_atual' not in st.session_state:
+    st.session_state.pagina_atual = 0
+    
+if "consulta_realizada" not in st.session_state:
+    st.session_state.consulta_realizada = False
+    
+    
+
 # Create a form for better UX
 with st.form("empenho_form"):
     # Layout with columns
     col1, col2 = st.columns(2)
     
     with col1:
-        unidade = st.text_input("Unidade", max_chars=40, placeholder="Máx. 40 caracteres")
-        credor = st.text_input("Credor", max_chars=40, placeholder="Máx. 40 caracteres")
+        unidade = st.text_input("Unidade", max_chars=40, placeholder="Máx. 40 caracteres", value=st.session_state.unidade)
+        credor = st.text_input("Credor", max_chars=40, placeholder="Máx. 40 caracteres", value=st.session_state.credor)
     
     with col2:
-        elem_despesa = st.text_input("ElemDespesaTCE", max_chars=40, placeholder="Máx. 40 caracteres")
+        elem_despesa = st.text_input("ElemDespesaTCE", max_chars=40, placeholder="Máx. 40 caracteres", value=st.session_state.elem_despesa)
 
-    # Histório: larger text area
-    historico = st.text_area("Histórico", max_chars=400, placeholder="Máx. 400 caracteres", height=150)
+    historico = st.text_area("Histórico", max_chars=400, placeholder="Máx. 400 caracteres", height=150, value=st.session_state.historico) # Histório: larger text area
+    
+    
 
+    
+    col_submit, col_clear = st.columns([1, 1])
+    with col_submit:
+        submitted = st.form_submit_button("🔍 Consultar Empenho")
+    with col_clear:
+        clear = st.form_submit_button("🧹 Limpar Campos")
 
-    submitted = st.form_submit_button("🔍 Consultar Empenho")
+    # If clear is pressed, reset all fields
+    if clear:
+        st.session_state.unidade = ""
+        st.session_state.credor = ""
+        st.session_state.elem_despesa = ""
+        st.session_state.historico = ""
+        st.session_state.consulta_realizada = False
+        st.session_state.pagina_atual = 0
     
     # Submit button
     if unidade or credor or elem_despesa or historico:
-        enviado = True
-    else:
-        enviado = False
-        # Gostaria que a mensagem aparecesse em vermelho somente quando a pessoa tentasse clicar sem nada
-        st.error("⚠️ Preencha pelo menos um dos campos para realizar a consulta.")
+        st.session_state.consulta_realizada = True
         
-    #X  = codificar_campos(historico)
+        
+    # else:
+    #     # Gostaria que a mensagem aparecesse em vermelho somente quando a pessoa tentasse clicar sem nada
+    #     st.error("⚠️ Preencha pelo menos um dos campos para realizar a consulta.")
+        
+    ## ---------------------------------------------------------------------------------------- ##
+
+    # Monta a query concatenando os campos preenchidos
+    query_lista = [str(x) for x in [historico, unidade, elem_despesa, credor] if x]
+    query = " ".join(query_lista)
+    embed_query = create_embeddings(pd.Series(query), model, tokenizer)[0]
+    ## ---------------------------------------------------------------------------------------- ##
+
+
+# Fora do form para evitar múltiplos submit
+if st.session_state.consulta_realizada:
     
+    st.session_state.unidade = unidade
+    st.session_state.credor = credor
+    st.session_state.elem_despesa = elem_despesa
+    st.session_state.historico = historico
+
     
-    # CHAMAMENTO PUBLICO 01 2020 SFI   PROC  2019021268   SERVCOS FINANCEIROS PARA ARRECADACAO DE GUIAS DE TRIBUTOS E DEMAIS RECEITAS DIVERSAS DE ACORDO COM O PADRAO DA FEDERACAO BRASILEIRA DE BANCOS   FEBRABAN COM PRESTACAO DE CONTAS POR MEIO MAGNETICO D
-    
-    # BANCO DO BRASIL SA
-
-    # PREFEITURA ANGRA DOS REIS
-
-    # OUTROS SERVICOS DE TERCEIROS   PESSOA JURIDICA
-
-
-
-    # Fora do form para evitar múltiplos submit
-    if submitted and enviado:
+    try:
+        documents = filter_results(collection, embed_query, threshold=1.5)
+        total_results = len(documents)
+        ## ---------------------------------------------------------------------------------------- ##
+        
+        
         st.success("✅ Consulta realizada com sucesso!")
         st.write(f"**Itens de Empenho relacionados:**")
-
-        # Exemplo de paginação fictícia
-        pagina = st.selectbox("Selecione a página:", ["Página 1", "Página 2", "Página 3", "Página 4"])
-
-        if pagina == "Página 1":
-            st.subheader("Item 1")
-            with st.container():
-                st.write("**Unidade:** PREFEITURA ANGRA DOS REIS")
-                st.write("**Credor:** Banco do Brasil SA")
-                st.write("**ElemDespesaTCE:** OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA")
-                st.write("**Histórico:** CHAMAMENTO PUBLICO 01 2020 SFI PROC 2019021268 SERVIÇOS FINANCEIROS PARA ARRECADAÇÃO DE GUIAS DE TRIBUTOS E DEMAIS RECEITAS DIVERSAS DE ACORDO COM O PADRÃO DA FEDERAÇÃO BRASILEIRA DE BANCOS - FEBRABAN COM PRESTAÇÃO DE CONTAS POR MEIO MAGNÉTICO D")
-                st.write("**Valor Empenhado:** R$ 100.000,00")
-            st.markdown("---")
-
-            st.subheader("Item 2")
-            with st.container():
-                st.write("**Unidade:** PREFEITURA ANGRA DOS REIS")
-                st.write("**Credor:** Caixa Econômica Federal")
-                st.write("**ElemDespesaTCE:** SERVIÇOS BANCÁRIOS")
-                st.write("**Histórico:** CONTRATO DE PRESTAÇÃO DE SERVIÇOS BANCÁRIOS PARA RECEBIMENTO DE TRIBUTOS MUNICIPAIS")
-                st.write("**Valor Empenhado:** R$ 150.000,00")
-            st.markdown("---")
-
-            st.subheader("Item 3")
-            with st.container():
-                st.write("**Unidade:** PREFEITURA ANGRA DOS REIS")
-                st.write("**Credor:** Banco Santander")
-                st.write("**ElemDespesaTCE:** SERVIÇOS FINANCEIROS")
-                st.write("**Histórico:** PRESTAÇÃO DE SERVIÇOS DE ARRECADAÇÃO DE TRIBUTOS VIA SISTEMA BANCÁRIO")
-                st.write("**Valor Empenhado:** R$ 80.000,00")
-                st.markdown("---")
         
-        elif pagina == "Página 2":
-            st.write("**Unidade:** SECRETARIA MUNICIPAL DE SAÚDE")
-            st.write("**Credor:** EMPRESA DE SERVIÇOS LTDA")
-            st.write("**ElemDespesaTCE:** MATERIAL DE CONSUMO")
-            st.write("**Histórico:** Aquisição de materiais hospitalares")
-            st.write("**Valor Empenhado:** R$ 50.000,00")
+        
+        # Quantidade total de documentos
+        total_empenhos = len(documents)
+        itens_por_pagina = 10
+        total_paginas = (total_empenhos + itens_por_pagina - 1) // itens_por_pagina
 
-        elif pagina == "Página 3":
-            st.write("**Unidade:** SECRETARIA DE EDUCAÇÃO")
-            st.write("**Credor:** LIVRARIA E PAPELARIA CENTRAL")
-            st.write("**ElemDespesaTCE:** MATERIAL DIDÁTICO")
-            st.write("**Histórico:** Compra de livros para rede municipal")
-            st.write("**Valor Empenhado:** R$ 30.000,00")
 
-        elif pagina == "Página 4":
-            st.write("**Unidade:** DEPARTAMENTO DE OBRAS")
-            st.write("**Credor:** CONSTRUTORA ABC")
-            st.write("**ElemDespesaTCE:** OBRAS E INSTALAÇÕES")
-            st.write("**Histórico:** Reforma de praça pública")
-            st.write("**Valor Empenhado:** R$ 200.000,00")
-            
+        # Botões de navegação
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("⬅️ Página anterior") and st.session_state.pagina_atual > 0:
+                st.session_state.pagina_atual -= 1
+        with col2:
+            if st.button("Próxima página ➡️") and st.session_state.pagina_atual < total_paginas - 1:
+                st.session_state.pagina_atual += 1
+
+        # Exibe página atual
+        st.write(f"📄 Página {st.session_state.pagina_atual + 1} de {total_paginas}")
+        
+        
+        # Seleciona os itens dessa página
+        inicio = st.session_state.pagina_atual * itens_por_pagina
+        fim = min(inicio + itens_por_pagina, total_empenhos)
+        
+        # Exibe apenas os documentos da página atual
+        for count_items, doc in enumerate(documents[inicio:fim], start=inicio):
+            string = doc['document']
+            metadata = doc['metadata']
+            parts = string.split(',')
+
+            st.subheader(f"Item {count_items + 1}")
+            with st.container():
+                st.write(f"**Unidade:** {parts[1]}")
+                st.write(f"**Credor:** {parts[3]}")
+                st.write(f"**ElemDespesaTCE:** {parts[2]}")
+                st.write(f"**Histórico:** {parts[0]}")
+                st.write(f"**Valor Empenhado:** {metadata}")
+            st.markdown("---")
+        
+        
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao consultar os empenhos. Coloque mais informação na consulta. {e}")
+        documents = []
+    ## ---------------------------------------------------------------------------------------- ##
+
+
+
 
 # Optional: add a footer
 st.markdown("---")
