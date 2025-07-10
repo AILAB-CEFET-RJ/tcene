@@ -156,5 +156,5 @@ optimal_ks_by_elem: [
   1
 ]
 epochs_dec: 100
-epochs_dec_elem: 10 ###
+epochs_dec_elem: 1 ###
 lr_DEC_opt: 0.0004

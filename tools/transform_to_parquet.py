@@ -69,7 +69,7 @@ except Exception as e:
     
     
 # Reassembling the parquet files into a single one
-output_file = 'tce.parquet'
+output_file = config['parquet_path']
 
 # List all Parquet files in the directory and sort them in ascending order
 parquet_files = sorted([f for f in os.listdir(output_dir) if f.startswith('tce_part_') and f.endswith('.parquet')])

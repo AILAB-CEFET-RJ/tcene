@@ -170,35 +170,29 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
                     lr=lr_dec,
                     batch_size=batch_size,
                     optimizer=dec_optimizer,
-                    scheduler= StepLR(dec_optimizer, 5, gamma=0.5),
+                    scheduler= StepLR(dec_optimizer, 15, gamma=0.5),
                     stopping_delta=0.000001,
                     cuda=cuda,
                     evaluate_batch_size=512,
+                    silent=True ######
                 )
                 X, predicted = predict( # we don't have actual values, so False
                     subds, model, batch_size=512, silent=True, return_actual=False, cuda=cuda
                 )
                 np.save(f'{output_predicted_dir}/predicted_elem_{i}.npy', predicted)
 
-                score = silhouette_score(subds, predicted)
-                print(f"Index = {i} Silhouette Score= {score:.4f}")
-                ss.append(score)
-                
-#                 Subset 0
-# 100%|██████████████████████████| 1239/1239 [03:50<00:00,  5.38batch/s, acc=0.0000, dlb=-1.0000, epo=-1, lss=0.00000000]
-# 100%|████████████████████████████| 1239/1239 [10:11<00:00,  2.03batch/s, acc=0.9286, dlb=0.0000, epo=0, lss=0.01967040]
-# 100%|████████████████████████████| 1239/1239 [10:38<00:00,  1.94batch/s, acc=0.8929, dlb=0.0000, epo=1, lss=0.10532027]
-# 100%|████████████████████████████| 1239/1239 [11:11<00:00,  1.84batch/s, acc=0.9643, dlb=0.0000, epo=2, lss=0.11008694]
-# 100%|████████████████████████████| 1239/1239 [11:46<00:00,  1.75batch/s, acc=0.9643, dlb=0.0000, epo=3, lss=0.15850048]
-# 100%|████████████████████████████| 1239/1239 [11:29<00:00,  1.80batch/s, acc=0.9643, dlb=0.0000, epo=4, lss=0.16401570]
-# 100%|████████████████████████████| 1239/1239 [11:58<00:00,  1.72batch/s, acc=0.9286, dlb=0.0000, epo=5, lss=0.12442385]
-# 100%|████████████████████████████| 1239/1239 [11:31<00:00,  1.79batch/s, acc=1.0000, dlb=0.0000, epo=6, lss=0.11701614]
-# 100%|████████████████████████████| 1239/1239 [11:32<00:00,  1.79batch/s, acc=1.0000, dlb=0.0000, epo=7, lss=0.12419288]
-# 100%|████████████████████████████| 1239/1239 [11:18<00:00,  1.83batch/s, acc=0.9643, dlb=0.0000, epo=8, lss=0.13830212]
-# 100%|████████████████████████████| 1239/1239 [11:27<00:00,  1.80batch/s, acc=1.0000, dlb=0.0000, epo=9, lss=0.11781995]
-                
+                if len(np.unique(predicted)) > 1:
+                    score = silhouette_score(subds, predicted)
+                    print(f"Index = {i}, Clusters = {optimal_ks_by_elem[i]} ,SS= {score:.4f}")
+                    ss.append(score)
+                else:
+                    print(f"Index = {i}, Clusters = {optimal_ks_by_elem[i]}, SS cannot be computed (only one cluster).")
+                    ss.append(None)
+                    
+                    
                 if (save_dec):
                     torch.save(model, os.path.join(config['saved_models_sorted_dir'], f"dec_model_{i}.pt"))
+        np.save(f'silhouette_scores{i}.npy', ss)
     else:
         num_clusters = config['num_clusters_testing'] if testing_mode else config['num_clusters']
         

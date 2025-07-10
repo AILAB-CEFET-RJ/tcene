@@ -10,13 +10,14 @@ import numpy as np
 # Open the configuration file and load the different arguments
 with open('config.yaml') as f:
     config = yaml.safe_load(f)
-    
+
+parquet_path = config['parquet_path']
 
 # truncate_dim=256
 model = SentenceTransformer(f'{config['embedding_model']}')
 
 # Load the DataFrame from a Parquet file
-df = pd.read_parquet('tce.parquet')
+df = pd.read_parquet(parquet_path)
 
 # Ensure the 'historico' and 'idContrato' are paired with their indices
 data = df['Historico'].astype(str).tolist()  # Ensure it's a list of strings

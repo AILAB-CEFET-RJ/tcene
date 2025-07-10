@@ -63,6 +63,7 @@ def train(
         sampler=sampler,
         shuffle=True,
     )
+    current_lr = optimizer.param_groups[0]["lr"]
     data_iterator = tqdm(
         static_dataloader,
         leave=True,
@@ -72,7 +73,7 @@ def train(
             "acc": "%.4f" % 0.0,
             "lss": "%.8f" % 0.0,
             "dlb": "%.4f" % -1,
-            "lr": lr,
+            "lr": current_lr,
         },
         disable=silent,
     )
@@ -129,7 +130,7 @@ def train(
                 "acc": "%.4f" % (accuracy or 0.0),
                 "lss": "%.8f" % 0.0,
                 "dlb": "%.4f" % (delta_label or 0.0),
-                "lr": optimizer.param_groups[0]["lr"],
+                "lr": current_lr,
             },
             disable=silent,
         )
@@ -165,33 +166,35 @@ def train(
                 acc="%.4f" % (accuracy or 0.0),
                 lss="%.8f" % float(loss.item()),
                 dlb="%.4f" % (delta_label or 0.0),
-                lr= "%.6f" % optimizer.param_groups[0]["lr"],
+                lr= "%.6f" % current_lr,
             )
             optimizer.zero_grad()
             loss.backward()
             optimizer.step(closure=None)
+            
+            
                 
             features.append(model.encoder(batch).detach().cpu())
             
             
             if update_freq is not None and index % update_freq == 0:
                 loss_value = float(loss.item())
+                
                 data_iterator.set_postfix(
                     epo=epoch,
                     acc="%.4f" % (accuracy or 0.0),
                     lss="%.8f" % loss_value,
                     dlb="%.4f" % (delta_label or 0.0),
-                    lr= "%.6f" % optimizer.param_groups[0]["lr"],
+                    lr= "%.6f" % current_lr,
                 )
                 if update_callback is not None:
                     update_callback(accuracy, loss_value, delta_label)
-        
-                    
-                    
+                
         if scheduler is not None:
             scheduler.step()
-        
-        
+            current_lr = optimizer.param_groups[0]["lr"]     
+            
+            
         if(len(actual)>0):
             pred = predict(
                 dataset,

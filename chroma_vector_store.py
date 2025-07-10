@@ -14,26 +14,26 @@ from tools.chroma_utils import create_embeddings
 with open('config.yaml') as f:
     config = yaml.safe_load(f)
 
-os.environ['OPENAI_API_KEY'] = config['API_key']
 
 df = pd.read_parquet(config['parquet_path'])
 raw_documents_to_embed = df[['Historico', 'Unidade', 'ElemDespesaTCE', 'Credor']]
 vlr_empenhado = df['Vlr_Empenhado']
 
 
+## Excluir o que está abaixo
 ## --------------------------------------------------------------------------------- ##
 elems = pd.unique(raw_documents_to_embed['ElemDespesaTCE'])
 index = 7
 mask = (raw_documents_to_embed['ElemDespesaTCE'] == elems[index]).values
 raw_documents_grouped = raw_documents_to_embed.iloc[mask]
 vlr_empenhado_grouped = vlr_empenhado.iloc[mask]
-print(vlr_empenhado_grouped.iloc[:5])
+samples = raw_documents_grouped.astype(str).agg(', '.join, axis=1)
 ## --------------------------------------------------------------------------------- ##
 
 # clusters = ...
 
-samples = raw_documents_grouped.astype(str).agg(', '.join, axis=1)
-print(type(samples))  # deve ser pandas.DataFrame
+#samples = raw_documents_to_embed.astype(str).agg(', '.join, axis=1)
+print(type(samples))  # deve ser pd.Series
 
 
 # Load a pre-trained transformer model for embeddings
@@ -63,15 +63,14 @@ documents = [
     Document(
         page_content=row,
         metadata={
-            'Vlr_Empenhado': vlr_empenhado_grouped[_]
+            'Vlr_Empenhado': vlr_empenhado_grouped.iloc[index],
+            # 'Clusters': clusters.iloc[index]
         }
     )
-    for _, row in samples.items()
+    for index, row in enumerate(samples.tolist())
 ]
 
-
 assert len(documents) == len(samples), "Mismatch between documents and embeddings!"
-
 
 print('Inserting Documents to DB')
 BATCH_SIZE = 5461
@@ -82,7 +81,7 @@ for i in range(0, len(documents), BATCH_SIZE):
         batch_docs = documents[i:i + BATCH_SIZE]
     collection.add(
         documents=[doc.page_content for doc in batch_docs],
-        # metadatas=[doc.metadata for doc in batch_docs],
+        metadatas=[doc.metadata for doc in batch_docs],
         embeddings=embeddings[i:i + BATCH_SIZE].tolist(),
         ids=[f"doc_{j}" for j in range(i, i + len(batch_docs))]
     )
