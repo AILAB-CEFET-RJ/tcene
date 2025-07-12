@@ -55,7 +55,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
     # callback function to call during training, uses writer from the scope
     
     save_dec = True
-    save_autoencoder = False
+    save_autoencoder = True
         
     # Open the configuration file and load the different arguments
     print(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -139,6 +139,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
     
     print("DEC stage.")
     output_predicted_dir = config['output_predicted_dir']
+    lr_dec = config['lr_DEC_opt'] 
     
     dataset = EMPENHOS(
         train=False, val=False, testing_mode=testing_mode
@@ -160,14 +161,11 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
                 if cuda:
                     model.cuda()
                 epochs_dec = config['epochs_dec_elem']
-                lr_dec = config['lr_DEC_opt'] 
-                # dec_optimizer = SGD(model.parameters(), lr=lr, momentum=0.9)
-                dec_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=lr_dec, weight_decay=1e-5)
+                dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.8, weight_decay=1e-4)# regularization to avoid overfitting on small (10D) embeddings
                 train(
                     dataset=subds,
                     model=model,
                     epochs=epochs_dec,
-                    lr=lr_dec,
                     batch_size=batch_size,
                     optimizer=dec_optimizer,
                     scheduler= StepLR(dec_optimizer, 15, gamma=0.5),
@@ -201,7 +199,9 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
             model.cuda()
         
         
-        dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
+        dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.8, weight_decay=1e-4)
+        # dec_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.0005, weight_decay=1e-5)
+        
         epochs_dec = config['epochs_dec']
             
         train(
@@ -210,6 +210,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
             epochs=epochs_dec,
             batch_size=batch_size,
             optimizer=dec_optimizer,
+            scheduler= StepLR(dec_optimizer, 20, gamma=0.5),
             stopping_delta=0.000001,
             cuda=cuda,
             evaluate_batch_size=1024,
@@ -219,14 +220,16 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
             dataset, model, 1024, silent=True, return_actual=False, cuda=cuda
         )
     
-        np.save(f'{output_predicted_dir}/predicted.npy', predicted)
-        
+          
         score = silhouette_score(X, predicted) # X and Labels
         print(f"Silhouette Score: {score:.4f}")
         
+        np.save(f'{output_predicted_dir}/predicted_{score:.4f}.npy', predicted)
+
+        
         # salvando o modelo para testes de inferência
         if (save_dec):
-            torch.save(model, os.path.join(config['saved_models_dir'], "dec_model_full.pt"))
+            torch.save(model, os.path.join(config['saved_models_dir'], f"dec_model_{score:.4f}.pt"))
     
     writer.close()
 

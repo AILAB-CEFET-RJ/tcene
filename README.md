@@ -17,10 +17,28 @@ Replace `your_env_name` with a name of your choice for the environment.
 
 Once your env activated, run:
 ```bash
-pip install -r requirements2.txt
+pip install -r requirements.txt
 ```
 
-Or, you can even install everything using docker ... [in progress]
+Alternatively, you can set up the environment using Docker:
+
+Check your Docker version:
+```bash
+docker --version
+```
+
+If Docker is outdated or not installed, make sure to follow a tutorial on how to install it on https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-20-04
+
+ you have to have already the vector_store created.
+
+Building docker image:
+
+docker build -t my-streamlit-app .
+
+docker image build <image-name>:<image-version> .
+
+Then, build docker container:
+
 
 
 ## Usage

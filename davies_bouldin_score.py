@@ -15,45 +15,39 @@ import matplotlib.pyplot as plt
 
 
 
-# # Open the configuration file and load the different arguments
-# with open('config.yaml') as f:
-#     config = yaml.safe_load(f)
-    
-# # Load the DataFrame from a Parquet file
-# df = pd.read_parquet('examples/tce.parquet')
-
-torch.cuda.set_device(1)
-
-ds_train = EMPENHOS(
-    train=True, testing_mode=False
-)  # training dataset
-
-
-static_dataloader = DataLoader(
-    ds_train,
-    batch_size=256,
-    shuffle=False, # os lotes serão na mesma ordem que no original
+dataset = EMPENHOS(
+    train=False, val=False, testing_mode=False
 )
 
 
+autoencoder = torch.load('outputs/models/autoencoder_full.pt', map_location=torch.device('cpu'), weights_only=False) 
 
-data_iterator = tqdm(
-    static_dataloader,
-    leave=True,
-    unit="batch",
-    disable=False,
-)
-features = []
-for index, batch in enumerate(data_iterator):
-    batch = batch.cuda(non_blocking=True)
-    features.append(batch.detach().cpu())  # Apenas adiciona o batch, sem passar pelo encoder
+dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
 
 
-features_tensor = torch.cat(features).numpy()
+# Encode all data
+encoded_outputs = []
+
+autoencoder.eval()  # Set to evaluation mode
+with torch.no_grad():
+    for batch in dataloader:
+        if isinstance(batch, (tuple, list)):
+            inputs = batch[0]
+        else:
+            inputs = batch
+
+        # inputs = inputs.to(device)  # Move to GPU if needed
+        encoded = autoencoder.encoder(inputs)
+        encoded_outputs.append(encoded.cpu())
+
+# Concatenate all batches
+features_tensor = torch.cat(encoded_outputs, dim=0).numpy()
+
+
 print(features_tensor.shape) 
 
 dbi_scores = []
-k_values = range(20, 71)
+k_values = range(64, 129)
 
 # https://towardsdatascience.com/davies-bouldin-index-for-k-means-clustering-evaluation-in-python-57f66da15cd/
 
@@ -65,7 +59,7 @@ for k in k_values:
     dbi_scores.append(dbi)
     print(f"dbi score: {dbi}")
 
-print(dbi_scores)
+
 
 k_optimal_idx = np.argmin(dbi_scores)
 k_optimal = k_values[k_optimal_idx]
@@ -84,4 +78,4 @@ plt.grid(True)
 """
 O menor valor de DBI indica o número de clusters mais apropriado.
 DBI é mais estável com MiniBatchKMeans em grandes conjuntos.
-"""
+""" 

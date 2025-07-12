@@ -23,7 +23,7 @@ hidden_layer: 10
 
 # DEC config
 num_clusters_testing: 10
-num_clusters: 56 # numero otimal de clusters, encontrado através do elbow method
+num_clusters: 51 
 optimal_ks_by_elem: [
   94,
   58,
@@ -155,6 +155,6 @@ optimal_ks_by_elem: [
   2,
   1
 ]
-epochs_dec: 100
-epochs_dec_elem: 1 ###
-lr_DEC_opt: 0.0004
+epochs_dec: 50
+epochs_dec_elem: 10 ###
+lr_DEC_opt: 0.0005

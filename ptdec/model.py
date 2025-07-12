@@ -14,7 +14,6 @@ def train(
     dataset: torch.utils.data.Dataset,
     model: torch.nn.Module, # o modelo que transforma lotes de samples em seus respectivos cluster assignments (possui também o encoder)
     epochs: int,
-    lr: float,
     batch_size: int,
     optimizer: torch.optim.Optimizer,
     scheduler: Any = None,
