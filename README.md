@@ -20,24 +20,39 @@ Once your env activated, run:
 pip install -r requirements.txt
 ```
 
-Alternatively, you can set up the environment using Docker:
 
-Check your Docker version:
-```bash
-docker --version
-```
 
-If Docker is outdated or not installed, make sure to follow a tutorial on how to install it on https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-20-04
+### Troubleshooting
 
- you have to have already the vector_store created.
+If Conda is not installed on your system, follow these steps to install Miniconda:
 
-Building docker image:
+1. **Download the Miniconda installer:**
+    ```bash
+    cd ~
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    ```
 
-docker build -t my-streamlit-app .
+2. **Make the installer executable:**
+    ```bash
+    chmod +x Miniconda3-latest-Linux-x86_64.sh
+    ```
 
-docker image build <image-name>:<image-version> .
+3. **Run the installer:**
+    ```bash
+    ./Miniconda3-latest-Linux-x86_64.sh
+    ```
 
-Then, build docker container:
+4. **Reload your shell configuration:**
+    ```bash
+    source ~/.bashrc
+    ```
+
+5. **Verify the installation:**
+    ```bash
+    conda --version
+    ```
+
+Refer to the [official Miniconda documentation](https://docs.conda.io/en/latest/miniconda.html) for more details.
 
 
 

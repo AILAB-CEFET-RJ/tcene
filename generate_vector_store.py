@@ -15,25 +15,31 @@ with open('config.yaml') as f:
     config = yaml.safe_load(f)
 
 
+# TODO: Lexical Search for Unidade, ElemDespesaTCE e Credor
 df = pd.read_parquet(config['parquet_path'])
-raw_documents_to_embed = df[['Historico', 'Unidade', 'ElemDespesaTCE', 'Credor']]
+raw_documents_to_embed = df[['Historico', 'Unidade', 'ElemDespesaTCE', 'Credor']] 
 vlr_empenhado = df['Vlr_Empenhado']
+clusters = np.load('outputs/features/predicted_0.9172.npy')
+clusters = pd.Series(clusters, dtype="str")
 
 
-## Excluir o que está abaixo
-## --------------------------------------------------------------------------------- ##
-elems = pd.unique(raw_documents_to_embed['ElemDespesaTCE'])
-index = 7
-mask = (raw_documents_to_embed['ElemDespesaTCE'] == elems[index]).values
-raw_documents_grouped = raw_documents_to_embed.iloc[mask]
-vlr_empenhado_grouped = vlr_empenhado.iloc[mask]
-samples = raw_documents_grouped.astype(str).agg(', '.join, axis=1)
-## --------------------------------------------------------------------------------- ##
+testing =  False
 
-# clusters = ...
-
-#samples = raw_documents_to_embed.astype(str).agg(', '.join, axis=1)
-print(type(samples))  # deve ser pd.Series
+if testing:
+    elems = pd.unique(raw_documents_to_embed['ElemDespesaTCE'])
+    index = 7
+    mask = (raw_documents_to_embed['ElemDespesaTCE'] == elems[index]).values
+    raw_documents_grouped = raw_documents_to_embed.iloc[mask]
+    vlr_empenhado_document = vlr_empenhado.iloc[mask]
+    clusters_document = clusters.iloc[mask]
+    samples = raw_documents_grouped.astype(str).agg(', '.join, axis=1)
+    
+else:
+    
+    samples = raw_documents_to_embed.astype(str).agg(', '.join, axis=1)
+    vlr_empenhado_document = vlr_empenhado
+    clusters_document = clusters
+    
 
 
 # Load a pre-trained transformer model for embeddings
@@ -45,7 +51,7 @@ print('Creating Embeddings...')
 embeddings = create_embeddings(samples, model, tokenizer)
 
 
-### Initializing Chromadb and collection
+# Initializing Chromadb and collection
 persistent_dir = 'data/chroma_db/'
 os.makedirs(persistent_dir, exist_ok=True)
 
@@ -63,8 +69,8 @@ documents = [
     Document(
         page_content=row,
         metadata={
-            'Vlr_Empenhado': vlr_empenhado_grouped.iloc[index],
-            # 'Clusters': clusters.iloc[index]
+            'Vlr_Empenhado': vlr_empenhado_document.iloc[index],
+            'Clusters': clusters_document.iloc[index]
         }
     )
     for index, row in enumerate(samples.tolist())
@@ -87,11 +93,10 @@ for i in range(0, len(documents), BATCH_SIZE):
     )
     
     
-### Little query for testing
+# Little query for testing
 
 collection = persistent_client.get_collection("my_collection")
 print(collection.count())
-
 
 query_str = "TRATA SE DE DESPESA COM PAGAMENTO DE FGTS DOS SERVIDORES DA SAUDE NO MES DE JANEIRO DE 2018  RAT PREFEITURA ANGRA DOS REIS CONTRIBUICAO PARA O FGTS CAIXA ECONOMICA FEDERAL"
 

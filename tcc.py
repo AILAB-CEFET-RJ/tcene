@@ -55,7 +55,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
     # callback function to call during training, uses writer from the scope
     
     save_dec = True
-    save_autoencoder = True
+    save_autoencoder = False
         
     # Open the configuration file and load the different arguments
     print(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -65,6 +65,8 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
     batch_size = config['batch_size_models']
     pretrain_epochs = config['pretrain_epochs']
     finetune_epochs = config['finetune_epochs']
+    models_dir = config['saved_models_dir']
+    os.makedirs(models_dir, exist_ok=True)
     
     
 
@@ -129,9 +131,9 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
         )
         
         if (save_autoencoder):
-            torch.save(autoencoder, os.path.join(config['saved_models_dir'], "autoencoder_full.pt"))
+            torch.save(autoencoder, os.path.join(models_dir, "autoencoder_full.pt"))
     else:
-        models_dir = config['saved_models_dir']
+        
         # autoencoder = torch.load(f'{models_dir}/autoencoder_full.pt', map_location=torch.device('cpu')) # python version < 3.11
         autoencoder = torch.load(f'{models_dir}/autoencoder_full.pt', map_location=torch.device('cpu'), weights_only=False) 
         
@@ -139,7 +141,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
     
     print("DEC stage.")
     output_predicted_dir = config['output_predicted_dir']
-    lr_dec = config['lr_DEC_opt'] 
+    os.makedirs(output_predicted_dir, exist_ok=True)
     
     dataset = EMPENHOS(
         train=False, val=False, testing_mode=testing_mode
@@ -151,6 +153,7 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
         optimal_ks_by_elem = config['optimal_ks_by_elem']
         
         for i in range(dataset.lenElemDespesaTCE()): # for each elem. despesa tce
+
             subds, _ = dataset.X_by_elem(i)
             if optimal_ks_by_elem[i] == 1:
                 predicted = np.zeros(len(subds)) # if there is just 1 cluster, there is nothing to predict
@@ -161,18 +164,21 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
                 if cuda:
                     model.cuda()
                 epochs_dec = config['epochs_dec_elem']
-                dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.8, weight_decay=1e-4)# regularization to avoid overfitting on small (10D) embeddings
+                lr_dec = config['lr_DEC_SGD'] 
+                
+                dec_optimizer = SGD(model.parameters(), lr=lr_dec, momentum=0.8, weight_decay=1e-4)
+                # dec_optimizer = torch.optim.Adam(model.parameters(), lr=lr_dec, weight_decay=1e-5)
                 train(
                     dataset=subds,
                     model=model,
                     epochs=epochs_dec,
+                    lr=lr_dec,
                     batch_size=batch_size,
                     optimizer=dec_optimizer,
                     scheduler= StepLR(dec_optimizer, 15, gamma=0.5),
                     stopping_delta=0.000001,
                     cuda=cuda,
                     evaluate_batch_size=512,
-                    silent=True ######
                 )
                 X, predicted = predict( # we don't have actual values, so False
                     subds, model, batch_size=512, silent=True, return_actual=False, cuda=cuda
@@ -181,27 +187,27 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
 
                 if len(np.unique(predicted)) > 1:
                     score = silhouette_score(subds, predicted)
-                    print(f"Index = {i}, Clusters = {optimal_ks_by_elem[i]} ,SS= {score:.4f}")
+                    print(f"Index = {i} Silhouette Score= {score:.4f}")
                     ss.append(score)
                 else:
-                    print(f"Index = {i}, Clusters = {optimal_ks_by_elem[i]}, SS cannot be computed (only one cluster).")
-                    ss.append(None)
+                    print(f"Index = {i} Silhouette Score cannot be computed (only one cluster).")
+                    ss.append(-9)
                     
                     
                 if (save_dec):
-                    torch.save(model, os.path.join(config['saved_models_sorted_dir'], f"dec_model_{i}.pt"))
-        np.save(f'silhouette_scores{i}.npy', ss)
+                    models_sorted = config['saved_models_sorted_dir']
+                    os.makedirs(models_sorted, exist_ok=True)
+                    torch.save(model, os.path.join(models_sorted, f"dec_model_{i}.pt"))
+        np.save(f'silhouette_scores{i}.npy', ss) # salvar somente 1 arquivo com todos os SS
     else:
         num_clusters = config['num_clusters_testing'] if testing_mode else config['num_clusters']
         
         model = DEC(cluster_number=num_clusters, hidden_dimension=hidden_layer, encoder=autoencoder.encoder)
         if cuda:
             model.cuda()
-        
-        
-        dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.8, weight_decay=1e-4)
-        # dec_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.0005, weight_decay=1e-5)
-        
+    
+        lr_dec = config['lr_DEC_SGD'] 
+        dec_optimizer = SGD(model.parameters(), lr=lr_dec, momentum=0.8, weight_decay=1e-4)
         epochs_dec = config['epochs_dec']
             
         train(
@@ -210,7 +216,6 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
             epochs=epochs_dec,
             batch_size=batch_size,
             optimizer=dec_optimizer,
-            scheduler= StepLR(dec_optimizer, 20, gamma=0.5),
             stopping_delta=0.000001,
             cuda=cuda,
             evaluate_batch_size=1024,
@@ -220,16 +225,15 @@ def main(cuda, testing_mode, train_autoencoder, sort_by_elem):
             dataset, model, 1024, silent=True, return_actual=False, cuda=cuda
         )
     
-          
         score = silhouette_score(X, predicted) # X and Labels
         print(f"Silhouette Score: {score:.4f}")
         
-        np.save(f'{output_predicted_dir}/predicted_{score:.4f}.npy', predicted)
-
+        np.save(f'{output_predicted_dir}/predicted_{score:.2f}.npy', predicted)
         
         # salvando o modelo para testes de inferência
         if (save_dec):
-            torch.save(model, os.path.join(config['saved_models_dir'], f"dec_model_{score:.4f}.pt"))
+            
+            torch.save(model, os.path.join(models_dir, f"dec_model_{score:.2f}.pt"))
     
     writer.close()
 

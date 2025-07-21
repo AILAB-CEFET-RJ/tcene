@@ -120,6 +120,7 @@ if st.session_state.consulta_realizada:
         with col2:
             if st.button("Próxima página ➡️") and st.session_state.pagina_atual < total_paginas - 1:
                 st.session_state.pagina_atual += 1
+                
 
         # Exibe página atual
         st.write(f"📄 Página {st.session_state.pagina_atual + 1} de {total_paginas}")
@@ -133,6 +134,8 @@ if st.session_state.consulta_realizada:
         for count_items, doc in enumerate(documents[inicio:fim], start=inicio):
             string = doc['document']
             metadata = doc['metadata']
+            vlr_empenhado = metadata['Vlr_Empenhado']
+            cluster = metadata['Clusters']
             parts = string.split(',')
 
             st.subheader(f"Item {count_items + 1}")
@@ -141,7 +144,8 @@ if st.session_state.consulta_realizada:
                 st.write(f"**Credor:** {parts[3]}")
                 st.write(f"**ElemDespesaTCE:** {parts[2]}")
                 st.write(f"**Histórico:** {parts[0]}")
-                st.write(f"**Valor Empenhado:** {metadata}")
+                st.write(f"**Valor Empenhado:** {vlr_empenhado}")
+                st.write(f"**Cluster:** {cluster}")
             st.markdown("---")
         
         

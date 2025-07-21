@@ -42,11 +42,11 @@ MANIFEST
 data/tce.parquet
 */__pycache__
 
-# pngs
+# extensions
 *.png
-
-# bins
 *.bin
+*.npy
+*.csv
 
 # vector store
 /chroma
