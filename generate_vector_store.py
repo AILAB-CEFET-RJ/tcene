@@ -17,27 +17,32 @@ with open('config.yaml') as f:
 
 # TODO: Lexical Search for Unidade, ElemDespesaTCE e Credor
 df = pd.read_parquet(config['parquet_path'])
-raw_documents_to_embed = df[['Historico', 'Unidade', 'ElemDespesaTCE', 'Credor']] 
-vlr_empenhado = df['Vlr_Empenhado']
+raw_documents_to_embed = df['Historico'] #df[['Historico', 'Unidade', 'ElemDespesaTCE', 'Credor']] 
 clusters = np.load('outputs/features/predicted_0.9172.npy')
 clusters = pd.Series(clusters, dtype="str")
 
 
-testing =  False
+testing =  True
 
 if testing:
-    elems = pd.unique(raw_documents_to_embed['ElemDespesaTCE'])
+    elems = pd.unique(df['ElemDespesaTCE'])
     index = 7
-    mask = (raw_documents_to_embed['ElemDespesaTCE'] == elems[index]).values
+    mask = (df['ElemDespesaTCE'] == elems[index]).values
     raw_documents_grouped = raw_documents_to_embed.iloc[mask]
-    vlr_empenhado_document = vlr_empenhado.iloc[mask]
+    unidade_document = df['Unidade'].iloc[mask]
+    credor_document = df['Credor'].iloc[mask]
+    elemDespesaTCE_document = df['ElemDespesaTCE'].iloc[mask]
+    vlr_empenhado_document = df['Vlr_Empenhado'].iloc[mask]
     clusters_document = clusters.iloc[mask]
-    samples = raw_documents_grouped.astype(str).agg(', '.join, axis=1)
+    samples = raw_documents_grouped #.astype(str).agg(', '.join, axis=1)
     
 else:
     
-    samples = raw_documents_to_embed.astype(str).agg(', '.join, axis=1)
-    vlr_empenhado_document = vlr_empenhado
+    samples = raw_documents_to_embed #.astype(str).agg(', '.join, axis=1)
+    unidade_document = df['Unidade']
+    credor_document = df['Credor']
+    elemDespesaTCE_document = df['ElemDespesaTCE']
+    vlr_empenhado_document = df['Vlr_Empenhado']
     clusters_document = clusters
     
 
@@ -69,6 +74,9 @@ documents = [
     Document(
         page_content=row,
         metadata={
+            'Unidade': unidade_document.iloc[index],
+            'Credor': credor_document.iloc[index],
+            'ElemDespesaTCE': elemDespesaTCE_document.iloc[index],
             'Vlr_Empenhado': vlr_empenhado_document.iloc[index],
             'Clusters': clusters_document.iloc[index]
         }
@@ -98,7 +106,7 @@ for i in range(0, len(documents), BATCH_SIZE):
 collection = persistent_client.get_collection("my_collection")
 print(collection.count())
 
-query_str = "TRATA SE DE DESPESA COM PAGAMENTO DE FGTS DOS SERVIDORES DA SAUDE NO MES DE JANEIRO DE 2018  RAT PREFEITURA ANGRA DOS REIS CONTRIBUICAO PARA O FGTS CAIXA ECONOMICA FEDERAL"
+query_str = "TRATA SE DE DESPESA COM PAGAMENTO DE FGTS DOS SERVIDORES DA SAUDE NO MES DE JANEIRO DE 2018"
 
 embed_query = create_embeddings(pd.Series(query_str), model, tokenizer)[0]
 

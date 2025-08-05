@@ -1,5 +1,5 @@
 import streamlit as st
-from tools.chroma_utils import load_vector_store, load_model_tokenizer, create_embeddings, filter_results
+from tools.chroma_utils import load_vector_store, load_model_tokenizer, create_embeddings, similarity_search
 
 import yaml
 import pandas as pd
@@ -18,7 +18,6 @@ vector_store, client, collection = load_vector_store(model)
 # Set page configuration
 st.set_page_config(page_title="Consulta - TCE", layout="centered")
 
-# Apply a nicer title and header
 st.title("📑 Consulta de Empenho")
 st.markdown("Preencha os campos abaixo com as informações do empenho:")
 
@@ -68,6 +67,7 @@ with st.form("empenho_form"):
         st.session_state.historico = ""
         st.session_state.consulta_realizada = False
         st.session_state.pagina_atual = 0
+        st.rerun()
     
     # Submit button
     if unidade or credor or elem_despesa or historico:
@@ -81,9 +81,12 @@ with st.form("empenho_form"):
     ## ---------------------------------------------------------------------------------------- ##
 
     # Monta a query concatenando os campos preenchidos
-    query_lista = [str(x) for x in [historico, unidade, elem_despesa, credor] if x]
-    query = " ".join(query_lista)
-    embed_query = create_embeddings(pd.Series(query), model, tokenizer)[0]
+    # query_lista = [str(x) for x in [historico, unidade, elem_despesa, credor] if x]
+    # query = " ".join(query_lista)
+    if historico != "":
+        embed_query = create_embeddings(pd.Series(historico), model, tokenizer)[0]
+    else:
+        embed_query = None
     ## ---------------------------------------------------------------------------------------- ##
 
 
@@ -97,7 +100,9 @@ if st.session_state.consulta_realizada:
 
     
     try:
-        documents = filter_results(collection, embed_query, threshold=1.5)
+
+        documents = similarity_search(collection, embed_query, unidade, credor, elem_despesa, threshold=10)
+
         total_results = len(documents)
         ## ---------------------------------------------------------------------------------------- ##
         
@@ -108,6 +113,7 @@ if st.session_state.consulta_realizada:
         
         # Quantidade total de documentos
         total_empenhos = len(documents)
+        print(f"Total de documentos encontrados: {total_empenhos}")
         itens_por_pagina = 10
         total_paginas = (total_empenhos + itens_por_pagina - 1) // itens_por_pagina
 
@@ -131,19 +137,22 @@ if st.session_state.consulta_realizada:
         fim = min(inicio + itens_por_pagina, total_empenhos)
         
         # Exibe apenas os documentos da página atual
-        for count_items, doc in enumerate(documents[inicio:fim], start=inicio):
+        for count_items, doc in enumerate(documents[0:3], start=0):
             string = doc['document']
             metadata = doc['metadata']
             vlr_empenhado = metadata['Vlr_Empenhado']
             cluster = metadata['Clusters']
-            parts = string.split(',')
+            unidade = metadata['Unidade']
+            elemDespesa = metadata['ElemDespesaTCE']
+            credor = metadata['Credor']
+    
 
             st.subheader(f"Item {count_items + 1}")
             with st.container():
-                st.write(f"**Unidade:** {parts[1]}")
-                st.write(f"**Credor:** {parts[3]}")
-                st.write(f"**ElemDespesaTCE:** {parts[2]}")
-                st.write(f"**Histórico:** {parts[0]}")
+                st.write(f"**Unidade:** {unidade}")
+                st.write(f"**Credor:** {credor}")
+                st.write(f"**ElemDespesaTCE:** {elemDespesa}")
+                st.write(f"**Histórico:** {string}")
                 st.write(f"**Valor Empenhado:** {vlr_empenhado}")
                 st.write(f"**Cluster:** {cluster}")
             st.markdown("---")
@@ -157,6 +166,6 @@ if st.session_state.consulta_realizada:
 
 
 
-# Optional: add a footer
+# Footer
 st.markdown("---")
 st.caption("Sistema de Cadastro de Empenho - Desenvolvido com ❤️ e Streamlit")

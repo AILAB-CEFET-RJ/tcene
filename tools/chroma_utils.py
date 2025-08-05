@@ -6,30 +6,57 @@ import torch
 import yaml
 
 
-def filter_results(collection, embed_query, threshold=1.5):
-    results = collection.query(
-        query_embeddings=[embed_query],
-        n_results=1000,  # or total documents if small
-        include=["distances", "documents", "metadatas"]
-    )
+def similarity_search(collection, embed_query, unidade, credor, elem_despesa, threshold=10):
     
-    threshold = 1.5
+    where = {}
+    if unidade:
+        where["Unidade"] = unidade
+    if credor:
+        where["Credor"] = credor
+    if elem_despesa:
+        where["ElemDespesaTCE"] = elem_despesa
+    
+    if embed_query is not None:
 
-    filtered = [
-        {
-            "document": doc,
-            "metadata": meta,
-            "distance": dist
-        }
-        for doc, meta, dist in zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0]
+        results = collection.query(
+            query_embeddings=[embed_query],
+            n_results=1000,
+            where=where,
+            include=["documents", "metadatas", "distances"]
         )
-        if dist <= threshold
-    ]
-    return filtered
+        
+        filtered = [
+            {
+                "document": doc,
+                "metadata": meta,
+                "distance": dist
+            }
+            for doc, meta, dist in zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0]
+            )
+            if dist <= threshold
+        ]
+        return filtered
+    else:
+        results = collection.get(
+            where=where,
+            include=["documents", "metadatas"]
+        )
+        
+            # Convert dict-of-lists to list-of-dicts
+        normalized = [
+            {
+                "document": doc,
+                "metadata": meta,
+                "distance": None  # no similarity score
+            }
+            for doc, meta in zip(results["documents"], results["metadatas"])
+        ]
 
+        return normalized
+    
 
     
 def create_embeddings(samples, model, tokenizer, batch_size=64):
